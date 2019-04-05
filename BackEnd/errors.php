@@ -5,10 +5,10 @@ $errors =[
         "status" => "error",
         "error" => [
             "msg" => [
-                "EU" => "REQUEST_IS_NULL",
-                "RU" => "Запрос пустой"
+                "EU" => "TOKEN_IS_NULL",
+                "RU" => "Токен пустой"
             ],
-            "id" => "1"
+            "id" => "0"
         ]
     ],
 
@@ -54,8 +54,50 @@ $errors =[
             ],
             "id" => "4"
         ]
-    ]
+    ],
 
+    5 => [
+        "status" => "error",
+        "error" => [
+            "msg" => [
+                "EU" => "INCORRECT_AUTH",
+                "RU" => "Не верный логин или пароль!"
+            ],
+            "id" => "5"
+        ]
+    ],
 
+    6 => [
+        "status" => "error",
+        "error" => [
+            "msg" => [
+                "EU" => "INCORRECT_STATUS",
+                "RU" => "Ваш аккаун не зарегистрирован в системе!"
+            ],
+            "id" => "6"
+        ]
+    ],
+
+    7 => [
+        "status" => "error",
+        "error" => [
+            "msg" => [
+                "EU" => "ACCOUNT_HAVE",
+                "RU" => "Такой аккаунт уже существует!"
+            ],
+            "id" => "7"
+        ]
+    ],
+
+    8 => [
+        "status" => "error",
+        "error" => [
+            "msg" => [
+                "EU" => "CODE_ERROR",
+                "RU" => "Такого кода не существует!"
+            ],
+            "id" => "8"
+        ]
+    ],
 ];
 ?>
