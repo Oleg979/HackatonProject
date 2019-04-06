@@ -1,17 +1,13 @@
 <?php
 require_once "Constants.php";
 require_once "errors.php";
-//$data = file_get_contents('php://input');
-$data = $_POST['request'];
+$data = file_get_contents('php://input');
+//$data = $_POST['request'];
 
 $request = json_decode($data,ture);
 
-$token = $request['token'];
 $method = $request['method'];
 $params = $request['params'];
-
-if($token == null)
-    exit(json_encode($errors[0]));
 
 if($method == null)
     exit(json_encode($errors[1]));
@@ -36,24 +32,25 @@ switch ($method){
         if($uStatus['status'] != "auth")
             exit(json_encode($errors[6]));
 
-        exit(sendResponse());
+        $token = md5(time());
+        $connection->query("INSERT INTO `tokens`(`uId`, `token`) VALUES ('{$bd_result['id']}','$token')");
+        exit(sendResponse(["token" => $token]));
     break;
 
     case "registration":
 
-        if($params['login'] == null or $params['password'] == null or $params['email'] == null )
+        if($params['login'] == null or $params['password'] == null)
             exit(json_encode($errors[2]));
 
         $pass =  $params['password'];
         $login = $params['login'];
-        $email = $params['email'];
 
-        $bd_result = $connection->query("SELECT * FROM `users` WHERE `login`='$login' OR `email`='$email'")->fetch_assoc();
+        $bd_result = $connection->query("SELECT * FROM `users` WHERE `login`='$login'")->fetch_assoc();
 
         if($bd_result)
             exit(json_encode($errors[7]));
 
-        $code = md5(time());
+        $code = rand (111110,999999);
         $uStatus = [
             "status" => "registering",
             "dateEnd" => time() + 86400
@@ -62,18 +59,19 @@ switch ($method){
         $uStatus = json_encode($uStatus);
         $pass = password_hash($pass, PASSWORD_DEFAULT);
 
-        $connection->query("INSERT INTO `users`(`login`, `paswordHash`, `email`, `uStatus`, `code`) VALUES ('$login','$pass','$email','$uStatus','$code')");
-        mail($email, "Подтверждение почты", "Код: " . $code);
+        $connection->query("INSERT INTO `users`(`login`, `paswordHash`, `uStatus`, `code`) VALUES ('$login','$pass','$uStatus','$code')");
+        mail($login, "Подтверждение почты", "Код: " . $code);
         exit(sendResponse());
     break;
 
     case "confirmEmail":
-        if($params['code'] == null)
+        if($params['code'] == null or $params['login'] == null)
             exit(json_encode($errors[2]));
 
         $code = $params['code'];
+        $login = $params['login'];
 
-        $bd_result = $connection->query("SELECT * FROM `users` WHERE `code`='$code'")->fetch_assoc();
+        $bd_result = $connection->query("SELECT * FROM `users` WHERE `code`='$code' AND `login`='$login'")->fetch_assoc();
 
         if(!$bd_result)
             exit(json_encode($errors[8]));
@@ -83,18 +81,50 @@ switch ($method){
         ];
 
         $uStatus = json_encode($uStatus);
-        $connection->query("UPDATE `users` SET `uStatus`='$uStatus',`code`='NULL' WHERE `id`='{$bd_result['id']}'");
+        $connection->query("UPDATE `users` SET `uStatus`='$uStatus',`code`='NULL' WHERE `login`='$login'");
 
         exit(sendResponse());
     break;
 
-}
+    case "getPlaces":
+        if($params['lat'] == null or $params['lon'] == null or $params['token'] == null)
+            exit(json_encode($errors[2]));
+
+        $xMy = round($params['lat'] * 111000);
+        $yMy = round($params['lon'] * 111000);
+        $token = $params['token'];
+
+        $db_places = $connection->query("SELECT * FROM `places` WHERE 1");
+        $db_user = $connection->query("SELECT * FROM `users` WHERE `id`=(SELECT `uId` FROM `tokens` WHERE `token`='$token')")->fetch_assoc();
+
+        $res = [];
 
 
-function testToken(){
-    global $key;
-    //return md5($key . substr( time(), 0, -1));
-    return $key;
+        $userSettings = json_decode($db_user['settings'],true);
+
+        while ($row = $db_places->fetch_assoc()){
+
+            $xPlace = round($row['latitude'] * 111000);
+            $yPlace = round($row['longitude'] * 111000);
+
+            $xPow = pow($xMy - $xPlace, 2);
+            $yPow = pow($yMy - $yPlace, 2);
+
+
+            if(sqrt($xPow + $yPow) <= $userSettings['radius'])
+                foreach($userSettings['categories'] as $key)
+                    if($key == $row['type'])
+                        array_push($res,$row);
+        }
+
+        exit(sendResponse($res));
+    break;
+
+    case "getSettings":
+        if($params['lat'] == null or $params['lon'] == null)
+            exit(json_encode($errors[2]));
+    break;
+
 }
 
 ////////////////////////////////////////////////
