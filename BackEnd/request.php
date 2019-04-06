@@ -32,9 +32,15 @@ switch ($method){
         if($uStatus['status'] != "auth")
             exit(json_encode($errors[6]));
 
+        $token = $connection->query("SELECT * FROM `tokens` WHERE `uId`='{$bd_result['id']}'")->fetch_assoc();
+
+        if($token)
+            exit(sendResponse(["token" => $token['token']]));
+
         $token = md5(time());
         $connection->query("INSERT INTO `tokens`(`uId`, `token`) VALUES ('{$bd_result['id']}','$token')");
-        exit(sendResponse(["token" => $token]));
+
+        exit(sendResponse(["token" => $token['token']]));
     break;
 
     case "registration":
@@ -120,9 +126,41 @@ switch ($method){
         exit(sendResponse($res));
     break;
 
-    case "getSettings":
-        if($params['lat'] == null or $params['lon'] == null)
+    case "setSettings":
+        if($params['radius'] == null or $params['categories'] == null or $params['token'] == null)
             exit(json_encode($errors[2]));
+
+        $token = $params['token'];
+        $categories = [];
+
+        foreach ($params['categories'] as $key => $value)
+            if($value)
+                array_push($categories,$key);
+
+        $res = json_encode([
+            "radius" => $params['radius'],
+            "categories" => $categories
+        ],true);
+
+        $db_user = $connection->query("UPDATE `users` SET `settings`='$res' WHERE `id`=(SELECT `uId` FROM `tokens` WHERE `token`='$token')");
+        exit(sendResponse());
+    break;
+
+    case "getAllDiscountFromPlace":
+        if($params['id'] == null)
+            exit(json_encode($errors[2]));
+
+        $pId = $params['id'];
+        $place = $connection->query("SELECT * FROM `places` WHERE `id`='$pId'")->fetch_assoc();
+        $allDicount = implode(",",json_decode($place['discounts'],true));
+
+        $db_discount = $connection->query("SELECT * FROM `discounts` WHERE `id` IN ($allDicount)");
+        $res = [];
+
+        while ($row = $db_discount->fetch_assoc())
+            array_push($res,$row);
+
+        exit(sendResponse($res));
     break;
 
 }
